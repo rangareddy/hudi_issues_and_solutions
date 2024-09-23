@@ -33,3 +33,47 @@ or
 ```sh
 export JAVA_TOOL_OPTIONS="-Djdk.attach.allowAttachSelf=true"
 ```
+
+## java.lang.NoSuchMethodError: java.nio.ByteBuffer.flip()Ljava/nio/ByteBuffer;
+
+```sh
+org.apache.spark.SparkException: Job aborted due to stage failure: Task serialization failed: java.lang.NoSuchMethodError: java.nio.ByteBuffer.flip()Ljava/nio/ByteBuffer;
+java.lang.NoSuchMethodError: java.nio.ByteBuffer.flip()Ljava/nio/ByteBuffer;
+	at org.apache.spark.util.io.ChunkedByteBufferOutputStream.toChunkedByteBuffer(ChunkedByteBufferOutputStream.scala:115)
+	at org.apache.spark.broadcast.TorrentBroadcast$.blockifyObject(TorrentBroadcast.scala:369)
+	at org.apache.spark.broadcast.TorrentBroadcast.writeBlocks(TorrentBroadcast.scala:161)
+	at org.apache.spark.broadcast.TorrentBroadcast.<init>(TorrentBroadcast.scala:99)
+	at org.apache.spark.broadcast.TorrentBroadcastFactory.newBroadcast(TorrentBroadcastFactory.scala:38)
+	at org.apache.spark.broadcast.BroadcastManager.newBroadcast(BroadcastManager.scala:78)
+	at org.apache.spark.SparkContext.broadcastInternal(SparkContext.scala:1657)
+	at org.apache.spark.SparkContext.broadcast(SparkContext.scala:1639)
+	at org.apache.spark.scheduler.DAGScheduler.submitMissingTasks(DAGScheduler.scala:1585)
+	at org.apache.spark.scheduler.DAGScheduler.submitStage(DAGScheduler.scala:1402)
+	at org.apache.spark.scheduler.DAGScheduler.handleJobSubmitted(DAGScheduler.scala:1337)
+	at org.apache.spark.scheduler.DAGSchedulerEventProcessLoop.doOnReceive(DAGScheduler.scala:3003)
+	at org.apache.spark.scheduler.DAGSchedulerEventProcessLoop.onReceive(DAGScheduler.scala:2994)
+	at org.apache.spark.scheduler.DAGSchedulerEventProcessLoop.onReceive(DAGScheduler.scala:2983)
+	at org.apache.spark.util.EventLoop$$anon$1.run(EventLoop.scala:49)
+```
+
+**Solution:**
+
+Use Java11 or higher version
+
+## Unable to connect hudi from Hive CLI
+
+When using the Hive CLI to connect to Hive and query the corresponding Hive table mapped by Hudi, the following exception is found:
+
+```sql
+hive> select * from test_table;
+FAILED: RuntimeException java.lang.ClassNotFoundException: org.apache.hudi.hadoop.HoodieParquetInputFormat
+```
+
+**Solution:**
+
+Put Hudi `hudi-hadoop-mr-bundle` dependencies under $HIVE_HOME/auxlib and restart hivemetastore and hiveserver2. We can find this jar under `packaging/hudi-hadoop-mr-bundle/target` folder.
+
+
+**Reference:**
+* https://hudi.apache.org/docs/syncing_metastore/#hive-environment
+
