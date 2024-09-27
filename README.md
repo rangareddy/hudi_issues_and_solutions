@@ -7,6 +7,27 @@
 * Spark Version: 3.5.1
 * Hudi Version: 0.15.0 (Internally uses HBase 2.4.13)
 
+**Problem:**
+
+1. Hudi 0.13.0 enables metadata table by default, while previous versions do not. ( HoodieMetadataConfig)
+2. The metadata table is stored in HBase's HFile format.
+3. Hudi 0.15.0 depends on HBase 2.4.13 and HBase 2.4.13 depends on Hadoop 2.x by default. This is inconsistent with the Hadoop 3.x version we use, and there is a compatibility issue, resulting in a dependency conflict: NoSuchMethodError.
+
+**Solution:**
+
+**Temporary Solution:**
+
+Disabling the metadata
+
+```sh
+hoodie.metadata.enable=false
+```
+
+**Permanent Solution:**
+
+1. Build the HBase by specifying Hadoop 3 version first.
+2. Then ReBuild the Hudi.
+
 ```sh
 export SPARK_VERSION=3.5.1
 HUDI_VERSION=0.15.0
