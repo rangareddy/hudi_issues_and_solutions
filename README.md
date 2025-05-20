@@ -181,3 +181,74 @@ Copy all required jars to the `$SPARK_HOME/jars/` directory or add the jars by s
 ```python
 .setJars(new String[]{"jar_path/sample.jar"})
 ```
+
+## java.lang.ClassNotFoundException: org.apache.spark.sql.execution.datasources.Spark35NestedSchemaPruning
+
+**Exception:**
+
+```java
+Exception in thread "main" org.apache.hudi.exception.HoodieException: Unable to load class
+        at org.apache.hudi.common.util.ReflectionUtils.lambda$getClass$0(ReflectionUtils.java:55)
+        at java.base/java.util.concurrent.ConcurrentHashMap.computeIfAbsent(ConcurrentHashMap.java:1737)
+        at org.apache.hudi.common.util.ReflectionUtils.getClass(ReflectionUtils.java:51)
+        at org.apache.hudi.common.util.ReflectionUtils.loadClass(ReflectionUtils.java:62)
+        at org.apache.spark.sql.hudi.analysis.HoodieAnalysis$.customOptimizerRules(HoodieAnalysis.scala:179)
+        at org.apache.spark.sql.hudi.HoodieSparkSessionExtension.apply(HoodieSparkSessionExtension.scala:43)
+        at org.apache.spark.sql.hudi.HoodieSparkSessionExtension.apply(HoodieSparkSessionExtension.scala:28)
+        at org.apache.spark.sql.SparkSession$.$anonfun$applyExtensions$2(SparkSession.scala:1370)
+        at org.apache.spark.sql.SparkSession$.$anonfun$applyExtensions$2$adapted(SparkSession.scala:1365)
+        at scala.collection.mutable.ResizableArray.foreach(ResizableArray.scala:62)
+        at scala.collection.mutable.ResizableArray.foreach$(ResizableArray.scala:55)
+        at scala.collection.mutable.ArrayBuffer.foreach(ArrayBuffer.scala:49)
+        at org.apache.spark.sql.SparkSession$.org$apache$spark$sql$SparkSession$$applyExtensions(SparkSession.scala:1365)
+        at org.apache.spark.sql.SparkSession$Builder.getOrCreate(SparkSession.scala:1104)
+        at org.apache.spark.sql.SQLContext$.getOrCreate(SQLContext.scala:1023)
+        at org.apache.spark.sql.SQLContext.getOrCreate(SQLContext.scala)
+        at org.apache.hudi.client.common.HoodieSparkEngineContext.<init>(HoodieSparkEngineContext.java:72)
+        at org.apache.hudi.utilities.streamer.HoodieStreamer.<init>(HoodieStreamer.java:166)
+        at org.apache.hudi.utilities.streamer.HoodieStreamer.<init>(HoodieStreamer.java:150)
+        at org.apache.hudi.utilities.streamer.HoodieStreamer.<init>(HoodieStreamer.java:136)
+        at org.apache.hudi.utilities.streamer.HoodieStreamer.main(HoodieStreamer.java:606)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:566)
+        at org.apache.spark.deploy.JavaMainApplication.start(SparkApplication.scala:52)
+        at org.apache.spark.deploy.SparkSubmit.org$apache$spark$deploy$SparkSubmit$$runMain(SparkSubmit.scala:1032)
+        at org.apache.spark.deploy.SparkSubmit.doRunMain$1(SparkSubmit.scala:194)
+        at org.apache.spark.deploy.SparkSubmit.submit(SparkSubmit.scala:217)
+        at org.apache.spark.deploy.SparkSubmit.doSubmit(SparkSubmit.scala:91)
+        at org.apache.spark.deploy.SparkSubmit$$anon$2.doSubmit(SparkSubmit.scala:1124)
+        at org.apache.spark.deploy.SparkSubmit$.main(SparkSubmit.scala:1133)
+        at org.apache.spark.deploy.SparkSubmit.main(SparkSubmit.scala)
+Caused by: java.lang.ClassNotFoundException: org.apache.spark.sql.execution.datasources.Spark35NestedSchemaPruning
+        at java.base/java.net.URLClassLoader.findClass(URLClassLoader.java:476)
+        at java.base/java.lang.ClassLoader.loadClass(ClassLoader.java:594)
+        at java.base/java.lang.ClassLoader.loadClass(ClassLoader.java:527)
+        at java.base/java.lang.Class.forName0(Native Method)
+        at java.base/java.lang.Class.forName(Class.java:315)
+        at org.apache.hudi.common.util.ReflectionUtils.lambda$getClass$0(ReflectionUtils.java:53)
+        ... 32 more
+```
+
+**Problem Statement:**
+
+The `java.lang.ClassNotFoundException: org.apache.spark.sql.execution.datasources.Spark35NestedSchemaPruning` error indicates that the Hudi Spark integration is attempting to use a Spark 3.5-specific class (Spark35NestedSchemaPruning) which is not available in the current Spark environment. This typically occurs when there's a mismatch between the Spark version Hudi was built against and the Spark version being used at runtime.  Specifically, the Hudi JARs being used were compiled with Spark 3.5 support, but that support is not available in the environment where the application is running.
+
+**Solution:**
+
+To resolve this issue, ensure that the Hudi JARs are compatible with your Spark runtime environment. There are a couple of ways to achieve this:
+
+1. Build a Hudi JAR that is compatible with your Spark version:
+
+   * When building Hudi from source, use the appropriate Spark and Scala profiles to create a JAR that matches your environment.
+   * For Spark 3.5 and Scala 2.12, use:
+        `mvn clean package -DskipTests -Dspark3.5 -Dscala-2.12`
+   * This will create a hudi-utilities-bundle JAR that includes the necessary Spark 3.5 support.  Ensure that this is the JAR used in your Spark application.
+
+2. Use the correct Hudi JARs for your Spark version:
+
+   * If you are not building Hudi from source, ensure you are using the correct pre-built Hudi JARs for your Spark version.
+   * For example, if you have this error, make sure you are including  both `hudi-utilities-slim-bundle_2.12-0.15.0.jar` and `hudi-spark3.5-bundle_2.12-0.15.0.jar` (or the correct version for your setup)
+   * Using a "slim" JAR in conjunction with a specific Spark version JAR provides the necessary components without including unnecessary dependencies that might cause conflicts.
+     
