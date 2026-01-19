@@ -252,3 +252,82 @@ To resolve this issue, ensure that the Hudi JARs are compatible with your Spark 
    * For example, if you have this error, make sure you are including  both `hudi-utilities-slim-bundle_2.12-0.15.0.jar` and `hudi-spark3.5-bundle_2.12-0.15.0.jar` (or the correct version for your setup)
    * Using a "slim" JAR in conjunction with a specific Spark version JAR provides the necessary components without including unnecessary dependencies that might cause conflicts.
      
+## AvroTypeException: Cannot encode decimal with precision 31 as max precision 30
+
+```sh
+export HUDI_SPARK_BUNDLE_JAR=/tmp/hudi-spark3.5-bundle_2.12-0.15.0-SNAPSHOT.jar
+
+spark-shell --master "local[2]" \
+  --jars $HUDI_SPARK_BUNDLE_JAR \
+  --conf 'spark.serializer=org.apache.spark.serializer.KryoSerializer' \
+  --conf 'spark.sql.catalog.spark_catalog=org.apache.spark.sql.hudi.catalog.HoodieCatalog' \
+  --conf 'spark.sql.extensions=org.apache.spark.sql.hudi.HoodieSparkSessionExtension' \
+  --conf 'spark.kryo.registrator=org.apache.spark.HoodieSparkKryoRegistrar'
+```
+
+```scala
+import org.apache.spark.sql.{Row, SparkSession}
+import org.apache.spark.sql.types._
+import java.math.BigDecimal
+
+// 1. Define a schema with Decimal precision 31
+// The error specifically mentions a precision of 31 and a scale adjustment
+val schema = StructType(Seq(
+  StructField("id", StringType, false),
+  StructField("amount", DecimalType(31, 2), true), // Precision 31 triggers the MDT limit
+  StructField("ts", LongType, true)
+))
+
+// 2. Create sample data
+val rows = Seq(
+  Row("1", new BigDecimal("12345678901234567890123456789.12"), 1705661400L)
+)
+
+val df = spark.createDataFrame(spark.sparkContext.parallelize(rows), schema)
+df.show()
+
+val tableName = "hudi_decimal_repro"
+val basePath = f"/tmp/$tableName"
+
+// 3. Hudi Options - Metadata and Column Stats MUST be enabled to trigger this
+val hudiOptions = Map(
+  "hoodie.table.name" -> tableName,
+  "hoodie.datasource.write.recordkey.field" -> "id",
+  "hoodie.datasource.write.precombine.field" -> "ts",
+  "hoodie.metadata.enable" -> "true",
+  "hoodie.metadata.index.column.stats.enable" -> "true", // This index uses the Avro schema with max precision 30
+  "hoodie.datasource.write.operation" -> "insert"
+)
+
+// 4. Write the data to Hudi table
+df.write.format("hudi").options(hudiOptions).mode("Overwrite").save(basePath)
+```
+
+Disable the metadata index column stats:
+
+```scala
+val hudiOptions = Map(
+  "hoodie.table.name" -> tableName,
+  "hoodie.datasource.write.recordkey.field" -> "id",
+  "hoodie.datasource.write.precombine.field" -> "ts",
+  "hoodie.metadata.enable" -> "true",
+  "hoodie.metadata.index.column.stats.enable" -> "false",
+  "hoodie.datasource.write.operation" -> "insert"
+)
+
+df.write.format("hudi").options(hudiOptions).mode("Overwrite").save()
+
+spark.read.format("hudi").load(basePath).show(false)
+```
+
+```scala
+import scala.math.BigDecimal
+val amount: BigDecimal = BigDecimal("12345678901234567890123456789.12")
+val precision = amount.precision // prints 31
+val scale = amount.scale         // prints 2
+
+import scala.math.BigDecimal
+val amount: BigDecimal = BigDecimal("1234567890134567890123456789.12")
+val precision = amount.precision // prints 30
+val scale = amount.scale         // prints 2
+```
